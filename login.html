@@ -59,6 +59,19 @@
     .email-status.is-invalid { color: #ffb2a2; }
     .email-status.is-valid { color: #86efac; }
     .password-wrap { position: relative; }
+    .password-requirement { margin: 6px 0 0; color: rgba(255,255,255,.58); font-size: 11px; line-height: 1.4; }
+    .password-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .forgot-inline { flex: 0 0 auto; padding: 0; border: 0; color: rgba(255,255,255,.62); background: transparent; font-size: 10px; font-weight: 800; cursor: pointer; }
+    .forgot-inline:hover { color: #fff; }
+    .back-to-signin { align-self: flex-start; width: auto; min-height: 38px; display: inline-flex; align-items: center; justify-content: flex-start; gap: 6px; padding: 0 12px; border: 1px solid rgba(255,255,255,.18); border-radius: 6px; color: rgba(255,255,255,.82); background: rgba(255,255,255,.04); font-size: 11px; font-weight: 800; cursor: pointer; }
+    .back-to-signin[hidden], .form-footer[hidden] { display: none; }
+    .back-to-signin:hover { border-color: var(--orange); color: #fff; }
+    .form-copy.is-forgot { width: min(100%, 520px); max-width: 520px; }
+    .form-copy.is-forgot .form-title { font-size: clamp(36px, 3.1vw, 44px); }
+    .form-copy.is-forgot .back-to-signin { margin-top: 18px; }
+    .form-copy.is-forgot .field input { min-height: 52px; font-size: 15px; }
+    .form-copy.is-forgot .submit-button { min-height: 54px; font-size: 15px; }
+    .form-copy.is-forgot .auth-form { margin-top: 18px; }
     .password-wrap input { padding-right: 52px; }
     .password-strength { display: grid; gap: 6px; margin-top: 1px; }
     .password-strength-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: rgba(255,255,255,.54); font-size: 9px; }
@@ -172,7 +185,6 @@
       .form-description { display: none; }
       .auth-form { margin-top: 49px; gap: 17px; }
       .auth-meta { justify-content: flex-start; margin-top: 0; }
-      #forgot-bottom, #footer-divider { display: inline; }
       .submit-button { min-height: 40px; margin-top: 8px; }
       .form-footer { margin-top: 38px; }
     }
@@ -394,6 +406,20 @@
       .form-panel { padding-inline: 19px; }
       .mode-switch button { padding-inline: 10px; }
     }
+    /* Keep secondary auth text readable at normal browser zoom. */
+    .mode-switch button { font-size: 12px; }
+    .field label { font-size: 14px; }
+    .field input { font-size: 15px; }
+    .password-toggle, .back-to-signin, .forgot-inline,
+    .password-requirement, .email-status,
+    .password-strength-top, .password-strength-top strong,
+    .password-strength-advice { font-size: 12px; }
+    .auth-meta { font-size: 13px; }
+    .remember { font-size: 13px; }
+    .submit-button { font-size: 15px; }
+    .form-footer, .form-footer button { font-size: 13px; }
+    .brand-tagline { font-size: 11px; }
+    .feature-list { font-size: 12px; }
   </style>
 </head>
 <body>
@@ -427,36 +453,41 @@
         <div class="form-copy">
           <h2 class="form-title" id="form-title">Log in to your account</h2>
           <p class="form-description" id="form-description">Pick up where your next focused study session starts.</p>
+          <button class="back-to-signin" id="back-to-signin" type="button" hidden>← Back to sign in</button>
 
           <form class="auth-form" id="auth-form" novalidate>
             <div class="name-fields" id="name-fields" hidden>
               <div class="field">
                 <label for="first-name">First name</label>
-                <input id="first-name" name="firstName" type="text" autocomplete="given-name" placeholder="Letters, spaces, or hyphens" maxlength="80">
+                <input id="first-name" name="firstName" type="text" autocomplete="given-name" placeholder="Juan" maxlength="80">
               </div>
               <div class="field">
                 <label for="last-name">Last name</label>
-                <input id="last-name" name="lastName" type="text" autocomplete="family-name" placeholder="Letters, spaces, or hyphens" maxlength="80">
+                <input id="last-name" name="lastName" type="text" autocomplete="family-name" placeholder="Dela Cruz" maxlength="80">
               </div>
               <div class="field">
                 <label for="middle-name">Middle name <span class="optional-label">Optional</span></label>
-                <input id="middle-name" name="middleName" type="text" autocomplete="additional-name" placeholder="Optional" maxlength="80">
+                <input id="middle-name" name="middleName" type="text" autocomplete="additional-name" placeholder="(optional)" maxlength="80">
               </div>
             </div>
             <div class="field" id="username-field">
               <label for="username" id="username-label">Username</label>
-              <input id="username" name="username" type="text" autocomplete="username" placeholder="3–24 letters, numbers, or underscores" maxlength="24" required>
+              <input id="username" name="username" type="text" autocomplete="username" placeholder="Enter your username" maxlength="24" required>
             </div>
             <div class="field" id="email-field" hidden>
               <label for="email">Email address</label>
-              <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" aria-describedby="email-status">
+              <input id="email" name="email" type="email" autocomplete="email" placeholder="juandelacruz@example.com" aria-describedby="email-status">
               <span class="email-status" id="email-status" role="status" aria-live="polite" hidden></span>
             </div>
             <div class="field" id="password-field">
               <label for="password" id="password-label">Password</label>
               <div class="password-wrap">
-                <input id="password" name="password" type="password" autocomplete="current-password" placeholder="At least 8 characters" required>
+                <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Password" required>
                 <button class="password-toggle" type="button" data-toggle-password="password">Show</button>
+              </div>
+              <div class="password-meta">
+                <p class="password-requirement" id="password-requirement">At least 8 characters</p>
+                <button class="forgot-inline" type="button" id="forgot-bottom">Forgot password?</button>
               </div>
               <div class="password-strength" id="password-strength" data-strength="weak" hidden aria-live="polite">
                 <div class="password-strength-top"><span>Password strength</span><strong id="password-strength-label">Weak</strong></div>
@@ -467,7 +498,7 @@
             <div class="field" id="confirm-field" hidden>
               <label for="confirm-password" id="confirm-label">Confirm password</label>
               <div class="password-wrap">
-                <input id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" placeholder="Repeat your password">
+                <input id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" placeholder="Confirm password">
                 <button class="password-toggle" type="button" data-toggle-password="confirm-password">Show</button>
               </div>
             </div>
@@ -484,7 +515,7 @@
             <p id="recovery-complete-copy"></p>
           </div>
 
-          <div class="form-footer"><span id="switch-copy">Don’t have an account yet?</span> <button type="button" id="switch-button">Create account</button><span class="footer-divider" id="footer-divider"> · </span><button class="forgot-placeholder" type="button" id="forgot-bottom">Forgot password?</button></div>
+          <div class="form-footer" id="form-footer"><span id="switch-copy">Don’t have an account yet?</span> <button type="button" id="switch-button">Create account</button></div>
         </div>
       </section>
     </main>
@@ -544,7 +575,6 @@
     const confirmInput = document.getElementById('confirm-password');
     const authMeta = document.getElementById('auth-meta');
     const forgotBottom = document.getElementById('forgot-bottom');
-    const footerDivider = document.getElementById('footer-divider');
     const errorBox = document.getElementById('form-error');
     const submitButton = document.getElementById('submit-button');
     const switchCopy = document.getElementById('switch-copy');
@@ -569,7 +599,6 @@
       confirmInput.required = isRegister;
       authMeta.hidden = isRegister;
       forgotBottom.hidden = isRegister;
-      footerDivider.hidden = isRegister;
       submitButton.innerHTML = `${isRegister ? 'Create account' : 'Sign in'} ${arrowSvg}`;
       switchCopy.textContent = isRegister ? 'Already have an account?' : 'Don’t have an account yet?';
       switchButton.textContent = isRegister ? 'Sign in' : 'Create account';
@@ -737,7 +766,6 @@
         byId('email').required = register;
         byId('auth-meta').hidden = register;
         byId('forgot-bottom').hidden = register;
-        byId('footer-divider').hidden = register;
         byId('submit-button').innerHTML = `${register ? 'Create account' : 'Sign in'} ${arrow}`;
         byId('switch-copy').textContent = register ? 'Already have an account?' : 'Don’t have an account yet?';
         byId('switch-button').textContent = register ? 'Sign in' : 'Create account';
@@ -926,11 +954,14 @@
         byId('password').autocomplete = register || reset ? 'new-password' : 'current-password';
         byId('password-label').textContent = reset ? 'New password' : 'Password';
         updatePasswordStrength();
-        byId('password').placeholder = reset ? 'Choose a secure password (8–72 characters)' : 'At least 8 characters';
+        byId('password').placeholder = reset ? 'New password' : 'Password';
         byId('confirm-field').hidden = !(register || reset);
         byId('confirm-password').required = register || reset;
         byId('confirm-label').textContent = reset ? 'Confirm new password' : 'Confirm password';
         byId('auth-meta').hidden = !signin;
+        byId('back-to-signin').hidden = mode !== 'forgot';
+        byId('form-footer').hidden = !regular;
+        formCopy.classList.toggle('is-forgot', forgot);
         form.hidden = finished;
         complete.hidden = !finished;
         if (finished) {
@@ -943,8 +974,7 @@
         byId('switch-copy').textContent = regular ? (register ? 'Already have an account?' : 'Don’t have an account yet?') : (forgot ? 'Remember your password?' : '');
         byId('switch-button').textContent = regular ? (register ? 'Sign in' : 'Create account') : 'Sign in';
         byId('switch-button').setAttribute('aria-label', regular ? (register ? 'Switch to sign in' : 'Create an account') : 'Return to sign in');
-        byId('forgot-bottom').hidden = !regular;
-        byId('footer-divider').hidden = !regular;
+        byId('forgot-bottom').hidden = !signin;
         submit.innerHTML = `${register ? 'Create account' : signin ? 'Sign in' : forgot ? 'Send reset link' : 'Update password'} ${arrow}`;
         document.querySelectorAll('[data-mode-button]').forEach(button => {
           const active = regular && button.dataset.modeButton === mode;
@@ -986,6 +1016,7 @@
         else { resetToken = ''; setMode('signin'); }
       });
       byId('forgot-bottom').addEventListener('click', () => { form.reset(); setMode('forgot'); });
+      byId('back-to-signin').addEventListener('click', () => { form.reset(); resetToken = ''; setMode('signin'); });
       byId('signout-confirm').addEventListener('click', () => {
         signoutModal.hidden = true;
         const cleanUrl = new URL(location.href);
