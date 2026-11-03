@@ -1,12 +1,30 @@
 {
   "name": "co-studymaxx",
-  "version": "1.0.0",
   "description": "Co-Studymaxx — Study Reviewer & Countdown Quiz System",
   "scripts": {
-    "start": "python -m http.server 8080",
-    "serve": "python -m http.server 8080"
+    "build": "node scripts/build-frontend.cjs",
+    "build:watch": "node scripts/build-frontend.cjs --watch",
+    "format:frontend": "prettier --write src",
+    "test:frontend": "playwright test",
+    "pretest:frontend": "npm run build",
+    "dev": "node serve.js",
+    "start": "node serve.js",
+    "serve": "node serve.js",
+    "mailer": "node mailer/server.js",
+    "test": "node serve.js --test"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "nodemailer": "^10.0.10",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "esbuild": "^0.28.2",
+    "prettier": "^3.9.10"
+  }
 }

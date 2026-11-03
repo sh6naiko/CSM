@@ -1,0 +1,9 @@
+Options -Indexes
+DirectoryIndex landing.html
+RewriteEngine On
+RewriteRule (^|/)\. - [F,L]
+RewriteRule ^(?:server|classes|database|tests|docs|test-results|storage)(?:/|$) - [F,L,NC]
+RewriteRule ^shared/deck/([a-zA-Z0-9_-]+)/?$ shared.html?share_token=$1 [QSA,L]
+<FilesMatch "^(?:config.*|.*\.sql|.*\.log|.*\.md|.*\.py|package\.json)$">
+  Require all denied
+</FilesMatch>

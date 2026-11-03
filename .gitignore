@@ -1,0 +1,15 @@
+# Secrets & environment configurations (NEVER commit to version control)
+.env
+.env.*
+!.env.example
+*.env
+*.env.local
+server/config.local.php
+mailer/.env
+
+# Dependencies & Build artifacts
+/node_modules/
+storage/
+test-results/
+__pycache__/
+*.log

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Co-StudyMaxx — Shared Reviewer Deck</title>
+  <meta name="description"
+    content="Study this shared reviewer deck on Co-StudyMaxx. Practice cards, flip flashcards, and test yourself with countdown quiz mode.">
+  <link rel="icon" type="image/png" href="assets/images/csm-mascot.png?v=1">
+
+  <!-- Use the platform's professional system font stack (SF Pro on Apple devices). -->
+
+  <script>
+    (function () {
+      var p = window.location.pathname;
+      var idx = p.toLowerCase().indexOf('/shared/');
+      var base = idx >= 0 ? p.substring(0, idx + 1) : '/';
+      var b = document.createElement('base');
+      b.href = base;
+      document.head.appendChild(b);
+    })();
+  </script>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Segoe UI', 'sans-serif'],
+            display: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', 'sans-serif'],
+            mono: ['SF Mono', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'monospace']
+          },
+          colors: {
+            brand: {
+              orange: '#f04824',
+              orangeHover: '#e03e1b',
+              orangeLight: '#fff1ee',
+              orangeBorder: '#ffd7cf',
+              charcoal: '#181818',
+              charcoalSurface: '#222222',
+              charcoalBorder: '#2e2e2e',
+              canvas: '#f4f5f7',
+              canvasSurface: '#ffffff',
+              canvasBorder: '#e5e7eb'
+            }
+          },
+          keyframes: {
+            shakeDanger: {
+              '0%, 100%': { transform: 'translateX(0) rotate(0deg)' },
+              '20%': { transform: 'translateX(-4px) rotate(-1.5deg)' },
+              '40%': { transform: 'translateX(4px) rotate(1.5deg)' },
+              '60%': { transform: 'translateX(-3px) rotate(-1deg)' },
+              '80%': { transform: 'translateX(3px) rotate(1deg)' },
+            },
+            shakeError: {
+              '0%, 100%': { transform: 'translateX(0)' },
+              '20%': { transform: 'translateX(-8px)' },
+              '40%': { transform: 'translateX(8px)' },
+              '60%': { transform: 'translateX(-6px)' },
+              '80%': { transform: 'translateX(6px)' },
+            },
+            sparkPulse: {
+              '0%, 100%': { transform: 'scale(1)', opacity: '1' },
+              '50%': { transform: 'scale(1.25)', opacity: '0.8' },
+            }
+          },
+          animation: {
+            'shake-danger': 'shakeDanger 0.22s infinite ease-in-out',
+            'shake-error': 'shakeError 0.35s ease-in-out',
+            'spark-pulse': 'sparkPulse 0.4s infinite ease-in-out',
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Uses the same compiled React components as the authenticated workspace. -->
+  <script type="module">
+    window.pdfjsReady = import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.3.289/pdf.min.mjs').then(pdfjsLib => {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.3.289/pdf.worker.min.mjs';
+      window.pdfjsLib = pdfjsLib;
+      return pdfjsLib;
+    }).catch(error => { console.error('PDF.js could not be loaded:', error); return null; });
+  </script>
+
+  <link rel="stylesheet" href="index.css?v=1.171">
+</head>
+
+<body>
+  <div class="outer-glow-backdrop"></div>
+  <div id="root" class="relative z-10 w-full h-screen flex items-stretch overflow-hidden"></div>
+
+  <script>
+    <?php if (isset($_GET['share_token'])): ?>
+    window.CSM_GUEST_SHARE_TOKEN = <?php echo json_encode((string)$_GET['share_token']); ?>;
+    <?php endif; ?>
+  </script>
+  <script src="api.js?v=1.19"></script>
+  <script src="assets/app.js?v=2.20"></script>
+</body>
+
+</html>
