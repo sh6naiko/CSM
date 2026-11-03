@@ -75,23 +75,11 @@ if ($route === 'shared/document' && $method === 'GET') {
     if (!$document) {
         fail(404, 'PDF not found.');
     }
-    $path = $config['upload_dir'] . '/' . $document['stored_name'];
-    if (!is_file($path)) {
-        fail(404, 'PDF missing from file storage.');
-    }
-
     if (session_status() === PHP_SESSION_ACTIVE) {
         session_write_close();
     }
-    header('Content-Type: application/pdf');
-    header('Content-Length: ' . filesize($path));
     $disp = ($_GET['download'] ?? '') === '1' ? 'attachment' : 'inline';
-    header("Content-Disposition: $disp; filename=\"document.pdf\"; filename*=UTF-8''" . rawurlencode((string)$document['title']));
-    header('Cache-Control: private, no-store');
-    header('X-Content-Type-Options: nosniff');
-    header("Content-Security-Policy: frame-ancestors 'self'; base-uri 'none'");
-    readfile($path);
-    exit;
+    send_private_pdf($document,$disp);
 }
 
 // Public PDFs attached to a deck that is currently shared through Discover.
@@ -104,15 +92,6 @@ if ($route === 'people/document' && $method === 'GET') {
         WHERE m.id=? AND u.role='user' AND u.banned_at IS NULL AND d.deleted_at IS NULL AND d.moderation_status='visible'
           AND (d.visibility='public' OR (d.visibility='inherit' AND p.deck_visibility='public'))", [$docId])->fetch();
     if (!$document) fail(404, 'This PDF is private or unavailable.');
-    $path = $config['upload_dir'] . '/' . $document['stored_name'];
-    if (!is_file($path)) fail(404, 'PDF missing from file storage.');
     if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
-    header('Content-Type: application/pdf');
-    header('Content-Length: ' . filesize($path));
-    header("Content-Disposition: inline; filename=\"document.pdf\"; filename*=UTF-8''" . rawurlencode((string)$document['title']));
-    header('Cache-Control: private, no-store');
-    header('X-Content-Type-Options: nosniff');
-    header("Content-Security-Policy: frame-ancestors 'self'; base-uri 'none'");
-    readfile($path);
-    exit;
+    send_private_pdf($document);
 }

@@ -1,0 +1,16 @@
+.git
+.vscode
+.vercel
+.env
+.env.*
+!.env.example
+server/config.local.php
+mailer/.env
+node_modules
+test-results
+tests
+tmp
+output
+storage
+csm-private-uploads
+*.log

@@ -41,7 +41,10 @@ CREATE TABLE card_options (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,card_id
  UNIQUE(card_id,position),FOREIGN KEY(card_id) REFERENCES cards(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE documents (
  id CHAR(32) PRIMARY KEY,user_id CHAR(32) NOT NULL,deck_id CHAR(32) NOT NULL,title VARCHAR(255) NOT NULL,stored_name VARCHAR(80) NOT NULL UNIQUE,
- mime_type VARCHAR(80) NOT NULL,size_bytes BIGINT NOT NULL,created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ mime_type VARCHAR(80) NOT NULL,size_bytes BIGINT NOT NULL,file_data LONGBLOB NULL,page_count INT NULL,
+ processing_status ENUM('pending','extracting','ready','failed') NOT NULL DEFAULT 'pending',
+ last_page INT NOT NULL DEFAULT 1,text_extracted BOOLEAN NOT NULL DEFAULT FALSE,
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
  INDEX(user_id,created_at),INDEX(deck_id),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,FOREIGN KEY(deck_id) REFERENCES decks(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE highlights (
@@ -146,4 +149,53 @@ CREATE TABLE deck_shares (
  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
  INDEX idx_deck_shares_token(share_token, is_active),
  FOREIGN KEY(deck_id) REFERENCES decks(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE document_pages (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,document_id CHAR(32) NOT NULL,page_number INT NOT NULL,
+ page_text LONGTEXT NOT NULL,created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ UNIQUE(document_id,page_number),INDEX(document_id),
+ FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE document_notes (
+ id CHAR(32) PRIMARY KEY,document_id CHAR(32) NOT NULL,user_id CHAR(32) NOT NULL,page_number INT NULL,
+ title VARCHAR(500) NOT NULL DEFAULT '',content TEXT NOT NULL,annotation_id CHAR(32) NULL,
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+ INDEX(document_id,user_id),INDEX(user_id,created_at),
+ FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE,
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+ FOREIGN KEY(annotation_id) REFERENCES highlights(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE study_decks (
+ id CHAR(32) PRIMARY KEY,user_id CHAR(32) NOT NULL,document_id CHAR(32) NULL,title VARCHAR(255) NOT NULL,
+ description TEXT NOT NULL DEFAULT '',created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+ INDEX(user_id,updated_at),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+ FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE study_flashcards (
+ id CHAR(32) PRIMARY KEY,deck_id CHAR(32) NOT NULL,question TEXT NOT NULL,answer TEXT NOT NULL,
+ explanation TEXT NOT NULL DEFAULT '',source_document_id CHAR(32) NULL,source_page INT NULL,position INT NOT NULL DEFAULT 0,
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+ INDEX(deck_id,position),FOREIGN KEY(deck_id) REFERENCES study_decks(id) ON DELETE CASCADE,
+ FOREIGN KEY(source_document_id) REFERENCES documents(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE flashcard_tags (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,flashcard_id CHAR(32) NOT NULL,tag VARCHAR(100) NOT NULL,
+ INDEX(flashcard_id),INDEX(tag),FOREIGN KEY(flashcard_id) REFERENCES study_flashcards(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE flashcard_review_progress (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,user_id CHAR(32) NOT NULL,flashcard_id CHAR(32) NOT NULL,
+ review_count INT UNSIGNED NOT NULL DEFAULT 0,correct_count INT UNSIGNED NOT NULL DEFAULT 0,
+ review_status ENUM('new','learning','known','mastered') NOT NULL DEFAULT 'new',
+ last_reviewed_at DATETIME(3) NULL,next_review_at DATETIME(3) NULL,
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+ UNIQUE(user_id,flashcard_id),INDEX(user_id,review_status),INDEX(user_id,next_review_at),
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+ FOREIGN KEY(flashcard_id) REFERENCES study_flashcards(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -94,7 +94,7 @@ if ($route === 'archive/decks/permanent' && $method === 'DELETE') {
     $id = id_field(input());
     $deck = $decksService->ownedArchived($id, $user);
     if (!$deck) fail(404, 'Archived reviewer not found.');
-    $names = query('SELECT stored_name FROM documents WHERE deck_id=? AND user_id=?', [$id, $user])->fetchAll(PDO::FETCH_COLUMN);
+    $names = query('SELECT stored_name FROM documents WHERE deck_id=? AND user_id=? AND file_data IS NULL', [$id, $user])->fetchAll(PDO::FETCH_COLUMN);
     $decksService->delete($id, $user);
     foreach ($names as $name) {
         $path = $config['upload_dir'] . '/' . $name;

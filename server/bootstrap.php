@@ -69,12 +69,22 @@ function security_headers():void{
     header('Cross-Origin-Opener-Policy: same-origin');
     header('Cross-Origin-Resource-Policy: same-origin');
     header("Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'self'");
-    if((!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')||($_SERVER['SERVER_PORT']??'')==='443')header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+    $forwardedProto=strtolower(trim(explode(',',(string)($_SERVER['HTTP_X_FORWARDED_PROTO']??''))[0]));
+    if($forwardedProto==='https'||(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')||($_SERVER['SERVER_PORT']??'')==='443')header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
 }
 security_headers();
 set_exception_handler(function(Throwable $error){if(isset($GLOBALS['db'])&&$GLOBALS['db']->inTransaction())$GLOBALS['db']->rollBack();error_log((string)$error);fail(500,'The server could not complete the request. Please try again.');});
-if(!is_file(__DIR__.'/config.local.php'))fail(503,'Server setup is incomplete. Copy server/config.example.php to config.local.php and configure MySQL.');
-$config=require __DIR__.'/config.local.php';$config+=[
+// Local installs may use config.local.php. Hosted environments (including Vercel)
+// provide the same settings through environment variables and need no writable config file.
+$localConfigFile=__DIR__.'/config.local.php';
+$config=is_file($localConfigFile)?require $localConfigFile:[];
+$config+=[
+ 'dsn'=>getenv('DB_DSN')?:'',
+ 'user'=>getenv('DB_USER')?:'',
+ 'password'=>getenv('DB_PASSWORD')?:'',
+ 'upload_dir'=>getenv('CSM_UPLOAD_DIR')?:sys_get_temp_dir().'/csm-private-uploads',
+ 'max_upload_bytes'=>(int)(getenv('CSM_MAX_UPLOAD_BYTES')?:4000000),
+ 'secure_cookie'=>filter_var(getenv('SECURE_COOKIE')?:'false',FILTER_VALIDATE_BOOLEAN),
  'app_env'=>getenv('APP_ENV')?:'local',
  'app_base_url'=>getenv('APP_BASE_URL')?:'',
  'admin_base_url'=>getenv('ADMIN_BASE_URL')?:'',
@@ -84,7 +94,9 @@ $config=require __DIR__.'/config.local.php';$config+=[
  'mailer_secret'=>getenv('CSM_MAILER_SECRET')?:'',
  'gemini_api_key'=>getenv('GEMINI_API_KEY')?:($config['gemini_api_key']??''),
  'gemini_model'=>getenv('GEMINI_MODEL')?:'gemini-3.8-flash',
-];$database=new Database($config);$db=$database->getConnection();
+];
+if(trim((string)$config['dsn'])===''||trim((string)$config['user'])==='')fail(503,'Server setup is incomplete. Configure DB_DSN and DB_USER.');
+$database=new Database($config);$db=$database->getConnection();
 foreach(['APP_BASE_URL'=>'app_base_url','ADMIN_BASE_URL'=>'admin_base_url','ADMIN_HOST'=>'admin_host','ADMIN_IP_ALLOWLIST'=>'admin_ip_allowlist','CSM_MAILER_URL'=>'mailer_url','CSM_MAILER_SECRET'=>'mailer_secret','GEMINI_API_KEY'=>'gemini_api_key','GEMINI_MODEL'=>'gemini_model'] as $environmentKey=>$configKey){$environmentValue=getenv($environmentKey);if($environmentValue!==false&&$environmentValue!=='')$config[$configKey]=$environmentValue;}
 function normalized_host_value(string $value):string{$value=trim($value);if($value==='')return '';$parsed=parse_url(str_contains($value,'://')?$value:'http://'.$value);if(!is_array($parsed)||empty($parsed['host']))return '';$host=strtolower((string)$parsed['host']);return $host.(isset($parsed['port'])?':'.(int)$parsed['port']:'');}
 function configured_admin_host():string{global $config;$host=normalized_host_value((string)($config['admin_host']??''));if($host!=='')return $host;$base=parse_url((string)($config['admin_base_url']??''));if(!is_array($base)||empty($base['host']))return '';return strtolower((string)$base['host']).(isset($base['port'])?':'.(int)$base['port']:'');}
@@ -114,6 +126,26 @@ function id_field(array $data,string $key='id'):string{$id=field($data,$key,32);
 function password_value(array $data,string $key):string{$value=$data[$key]??null;if(!is_string($value)||strlen($value)<8||strlen($value)>72||str_contains($value,"\0"))fail(422,'Passwords must contain 8–72 bytes.');return $value;}
 function owned_deck(string $id,string $user):array{global $decksService;$row=$decksService->owned($id,$user);if(!$row)fail(404,'Reviewer not found.');return $row;}
 function owned_document(string $id,string $user):array{global $materialsService;$row=$materialsService->owned($id,$user);if(!$row)fail(404,'Material not found.');return $row;}
+function send_private_pdf(array $document,string $disposition='inline'):never{
+ global $config;
+ $row=query('SELECT file_data FROM documents WHERE id=?',[(string)$document['id']])->fetch();
+ if(!$row)fail(404,'PDF not found.');
+ $contents=$row['file_data'];
+ if(is_resource($contents))$contents=stream_get_contents($contents);
+ if($contents===null){
+  $path=rtrim((string)$config['upload_dir'],'/\\').DIRECTORY_SEPARATOR.basename((string)$document['stored_name']);
+  if(!is_file($path))fail(404,'PDF missing from file storage.');
+  header('Content-Type: application/pdf');header('Content-Length: '.filesize($path));
+  header('Content-Disposition: '.$disposition.'; filename="document.pdf"; filename*=UTF-8\'\''.rawurlencode((string)$document['title']));
+  header('Cache-Control: private, no-store');header('X-Content-Type-Options: nosniff');header("Content-Security-Policy: frame-ancestors 'self'; base-uri 'none'");
+  readfile($path);exit;
+ }
+ if(!is_string($contents))fail(404,'PDF missing from file storage.');
+ header('Content-Type: application/pdf');header('Content-Length: '.strlen($contents));
+ header('Content-Disposition: '.$disposition.'; filename="document.pdf"; filename*=UTF-8\'\''.rawurlencode((string)$document['title']));
+ header('Cache-Control: private, no-store');header('X-Content-Type-Options: nosniff');header("Content-Security-Policy: frame-ancestors 'self'; base-uri 'none'");
+ echo $contents;exit;
+}
 class DatabaseSessionHandler implements SessionHandlerInterface{
  public function open($path,$name):bool{return true;}public function close():bool{return true;}
  public function read($id):string{$row=query('SELECT payload FROM web_sessions WHERE id=? AND expires_at>?',[$id,time()])->fetch();return $row?(string)$row['payload']:'';}
@@ -166,7 +198,8 @@ function same_origin_request():bool{
  if($origin==='')return true;
  $parsed=parse_url($origin);$hostHeader=(string)($_SERVER['HTTP_HOST']??'');$expected=parse_url('http://'.$hostHeader);
  if(!is_array($parsed)||!is_array($expected)||empty($parsed['host'])||empty($expected['host']))return false;
- $scheme=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http';
+ $forwardedProto=strtolower(trim(explode(',',(string)($_SERVER['HTTP_X_FORWARDED_PROTO']??''))[0]));
+ $scheme=$forwardedProto==='https'||(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http';
  $originPort=(int)($parsed['port']??($parsed['scheme']==='https'?443:80));$expectedPort=(int)($expected['port']??($scheme==='https'?443:80));
  return strtolower((string)$parsed['scheme'])===$scheme&&strtolower((string)$parsed['host'])===strtolower((string)$expected['host'])&&$originPort===$expectedPort;
 }

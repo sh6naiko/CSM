@@ -11,10 +11,10 @@ For codebase design, directory structure, and data flows, see [the architecture 
 - `scripts/build-frontend.cjs`: builds `assets/app.js` and `assets/landing.js` from the React sources.
 - `assets/images/`: shared branding images.
 - `api/`, `server/`, and `classes/`: API routes, request/session handling, and database services.
-- `database/schema.sql`: the canonical empty-database schema. Use `migrate.php` and `migrate-learning-workspace.php` for existing installations and the PDF learning workspace.
+- `database/schema.sql`: the complete schema for a new empty database. Use `migrate.php` and `migrate-learning-workspace.php` to upgrade existing installations.
 - `mailer/`: password-recovery email service.
 - `tests/`: integration checks; `docs/`: project documentation.
-- `storage/`: ignored local backups. Keep uploaded PDFs in the configured private upload directory.
+- `storage/`: ignored local backups. PDF bytes are stored in MySQL; older installs can still read legacy files from the configured private upload directory.
 
 See [cleanup notes](docs/CLEANUP.md) for removed legacy files and recovery information.
 
@@ -63,6 +63,18 @@ GEMINI_MODEL=gemini-3.8-flash
 ```
 The application automatically loads `.env` securely in [`server/bootstrap.php`](server/bootstrap.php). `.env` is ignored by Git to protect secrets.
 
+## Deploy to Vercel (PHP + MySQL)
+
+This repository includes `Dockerfile.vercel`, which packages Apache/PHP, the built React app, and the local Nodemailer bridge into a Vercel Container Function. MySQL remains the database; Vercel does not provide a MySQL server. Use a managed MySQL 8/MariaDB host that accepts TLS connections from Vercel. Vercel's container filesystem is temporary, so uploaded PDFs are stored in the MySQL `documents.file_data` column. To stay under Vercel's 4.5 MB request and response payload cap, Vercel deployments limit PDF uploads to 4,000,000 bytes (about 3.8 MiB). Larger source PDFs need to be compressed before upload.
+
+1. Create a managed MySQL database and import `database/schema.sql` into a new empty database using phpMyAdmin. The schema includes the full workspace and PDF BLOB column. Keep the database reachable from Vercel and enable encrypted connections. For an existing Co-StudyMaxx database, back it up, run `database/migrate.php`, then run `database/migrate-learning-workspace.php`. If existing PDFs are in the local private upload folder, run `C:\xampp\php\php.exe database\migrate-pdfs-to-database.php` after the schema migrations. That copies PDFs up to 4,000,000 bytes into MySQL and keeps the originals. Larger files must be compressed for Vercel. Keep the database backup until cutover is confirmed.
+2. Push this repository to GitHub and import it into Vercel. The checked-in `vercel.json` selects Vercel's container runtime. Vercel builds the frontend and PHP image from `Dockerfile.vercel` on each deployment.
+3. Add the production environment variables from `.env.example` in Vercel's **Project Settings → Environment Variables**. Set the database host/name/user/password, `APP_BASE_URL`, `ADMIN_BASE_URL`, `ADMIN_HOST`, `SECURE_COOKIE=true`, and `APP_ENV=production`. Set `APP_BASE_URL` to your public app domain and `ADMIN_BASE_URL` to a different HTTPS domain. Assign both custom domains to the same Vercel project; production configuration rejects using one host for both.
+4. Set a random 64-character `CSM_MAILER_SECRET` and use the same value for the app and mailer. Add the SMTP variables so password recovery can send email. Set `GEMINI_API_KEY` if AI features are enabled. Do not set `ADMIN_IP_ALLOWLIST` unless the listed IPs are stable and are the actual client egress addresses.
+5. Deploy to Vercel, assign the two HTTPS domains, then create an account and verify sign-in, session persistence, PDF upload/view/delete, and password recovery. For an existing database, verify user and study data before changing the live DNS or removing the old host.
+
+The Vercel container runtime is still a newer Vercel deployment option; it follows Vercel Function limits and pricing. See [Vercel's container deployment guide](https://vercel.com/kb/guide/docker) and [function limits](https://vercel.com/docs/functions/limitations). This deployment uses MySQL, not Supabase Postgres: the current PHP database layer and SQL migrations are MySQL-specific.
+
 To enable AI flashcard generation, create a local root `.env` from `.env.example`, add your Gemini API key from [Google AI Studio](https://aistudio.google.com/), and keep `GEMINI_MODEL=gemini-3.8-flash` unless you need a different model. The key remains server-side and is sent to Gemini through an API-key header; it is never placed in frontend JavaScript or request URLs. AI generation is limited to 20 requests per account per hour.
 
 ## Security requirements
@@ -75,7 +87,7 @@ Before exposing the site beyond local development:
 2. Configure `ADMIN_BASE_URL` as a separate HTTPS host such as `https://admin.example.com`. Production startup refuses to run without a distinct admin host. The admin console is entered through `/admin`, and every `admin/*` API request independently checks the configured admin host before role authorization.
 3. Set `ADMIN_IP_ALLOWLIST` to a comma-separated list of trusted administrator IPs when you have a fixed VPN, office, or Zero Trust egress address. Leave it blank only when your edge provider supplies the network restriction; do not expose the origin directly.
 4. Keep `server/config.local.php`, `.env`, and `mailer/.env` outside version control. Rotate database, mailer, and AI credentials immediately if they were ever committed, pasted into a ticket, or shared publicly.
-5. Use a dedicated MySQL account with only `SELECT, INSERT, UPDATE, DELETE` on this application database. Keep backups encrypted and restrict access to the private upload directory and database backups.
+5. Use a dedicated MySQL account with only `SELECT, INSERT, UPDATE, DELETE` on this application database. Keep encrypted database backups, including uploaded PDF contents.
 6. Keep the mailer bound to `127.0.0.1`; do not expose port `8091` to the network. Use authenticated SMTP with TLS in production.
 7. Do not place uploaded PDFs or configuration files under a public web root. Review web-server logs and audit events without recording passwords, tokens, session IDs, or document contents.
 
@@ -86,7 +98,7 @@ Before exposing the site beyond local development:
 1. Install/start Apache and MySQL in XAMPP. The app uses PHP 8+, PDO MySQL, `mbstring`, and `fileinfo` (included in the XAMPP PHP build).
 2. Create a local database named `co_studymaxx` with `utf8mb4` collation. For a new empty database, import `database/schema.sql` using phpMyAdmin?s **Import** tab or `mysql -u root -p co_studymaxx < database/schema.sql`.
 3. Create a least-privilege application user in MySQL. Grant `SELECT, INSERT, UPDATE, DELETE` on `co_studymaxx.*`; the application does not need DDL permissions at runtime.
-4. Copy `server/config.example.php` to `server/config.local.php` and set a strong unique local password, database host/name, and a private upload directory. Keep `secure_cookie` false only for local HTTP; enable it behind HTTPS. `config.local.php` is ignored by Git.
+4. Copy `server/config.example.php` to `server/config.local.php` and set a strong unique local password and database host/name. `config.local.php` is ignored by Git. New PDF uploads are stored in MySQL; the private upload directory is retained for legacy files.
 5. For an existing Co-StudyMaxx database, back it up first, then run the additive migration with a database account temporarily allowed to alter the schema:
 
    ```powershell
@@ -139,7 +151,7 @@ The PDF Study Tool uses a pinned Mozilla PDF.js build from cdnjs, so PDF renderi
 
 `database/schema.sql` is for an empty database only. For data already in the prior schema, run the migration, not the empty schema over that database. There is no automatic sample-data seeder: the old frontend?s sample decks were presentation mocks and are not copied into real accounts. The app now displays each signed-in account?s saved data. Existing users without email can continue signing in with username; an email is required when registering a new account. Browser-only legacy profile/activity data is not silently assigned to a server account; the login page offers a JSON export, while old plaintext browser credentials are removed.
 
-Uploaded PDFs are stored outside the public project folder (default: a `csm-private-uploads` directory two levels above `server/`) under generated names. Back up that directory along with MySQL. Never place it under `htdocs` or the repository.
+New PDF uploads are stored in MySQL under generated IDs. Older installations may still have legacy PDFs in the private upload directory (default: `csm-private-uploads` outside the repository); back up that directory until those files have been migrated. Never place it under `htdocs` or the repository.
 
 ## Checks
 
