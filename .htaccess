@@ -3,7 +3,8 @@ DirectoryIndex landing.html
 RewriteEngine On
 RewriteRule (^|/)\. - [F,L]
 RewriteRule ^(?:server|classes|database|tests|docs|test-results|storage)(?:/|$) - [F,L,NC]
+RewriteRule ^admin/?$ index.html [L]
 RewriteRule ^shared/deck/([a-zA-Z0-9_-]+)/?$ shared.html?share_token=$1 [QSA,L]
-<FilesMatch "^(?:config.*|.*\.sql|.*\.log|.*\.md|.*\.py|package\.json)$">
+<FilesMatch "^(?:config.*|.*\.sql|.*\.log|.*\.md|.*\.py|package(-lock)?\.json)$">
   Require all denied
 </FilesMatch>

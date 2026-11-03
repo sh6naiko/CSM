@@ -1,0 +1,30 @@
+FROM node:22-bookworm-slim AS frontend
+WORKDIR /build
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build && npm prune --omit=dev
+
+FROM php:8.3-apache-bookworm
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libonig-dev \
+    && docker-php-ext-install pdo_mysql mbstring \
+    && a2enmod rewrite headers \
+    && rm -rf /var/lib/apt/lists/*
+RUN printf 'upload_max_filesize=4M\npost_max_size=4.2M\nmax_file_uploads=1\nmemory_limit=256M\nmax_execution_time=60\n' > /usr/local/etc/php/conf.d/csm-vercel.ini
+
+COPY --from=frontend /usr/local/bin/node /usr/local/bin/node
+COPY --from=frontend /build/node_modules /opt/csm-node-modules
+ENV NODE_PATH=/opt/csm-node-modules
+ENV APP_ENV=production
+ENV SECURE_COOKIE=true
+ENV CSM_MAX_UPLOAD_BYTES=4000000
+COPY . /var/www/html
+COPY --from=frontend /build/assets/app.js /var/www/html/assets/app.js
+COPY --from=frontend /build/assets/landing.js /var/www/html/assets/landing.js
+COPY vercel/start.sh /usr/local/bin/start-csm.sh
+RUN chmod +x /usr/local/bin/start-csm.sh \
+    && chown -R www-data:www-data /var/www/html
+WORKDIR /var/www/html
+EXPOSE 80
+CMD ["/usr/local/bin/start-csm.sh"]

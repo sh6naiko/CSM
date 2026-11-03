@@ -9,6 +9,7 @@ mailer/.env
 
 # Dependencies & Build artifacts
 /node_modules/
+/.vercel/
 storage/
 test-results/
 __pycache__/

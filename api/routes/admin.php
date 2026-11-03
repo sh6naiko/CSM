@@ -192,20 +192,9 @@ if (str_starts_with($route, 'admin/')) {
         if (!$document) {
             fail(404, 'PDF not found.');
         }
-        $path = $config['upload_dir'] . '/' . $document['stored_name'];
-        if (!is_file($path)) {
-            fail(404, 'PDF missing from file storage.');
-        }
         audit_event($user, 'admin_document_viewed', (string)$document['deck_id'], ['documentId' => (string)$document['id']], 'deck');
         session_write_close();
-        header('Content-Type: application/pdf');
-        header('Content-Length: ' . filesize($path));
-        header('Content-Disposition: inline; filename="document.pdf"; filename*=UTF-8\'\'' . rawurlencode((string)$document['title']));
-        header('Cache-Control: private, no-store');
-        header('X-Content-Type-Options: nosniff');
-        header("Content-Security-Policy: frame-ancestors 'self'; base-uri 'none'");
-        readfile($path);
-        exit;
+        send_private_pdf($document);
     }
 
     if ($route === 'admin/decks/flag' && $method === 'POST') {
@@ -655,7 +644,7 @@ if (str_starts_with($route, 'admin/')) {
             $db->rollBack();
             fail(404, 'One or more selected decks are no longer hidden. Refresh the archive and try again.');
         }
-        $documents = query("SELECT deck_id,stored_name FROM documents WHERE deck_id IN ($placeholders)", $ids)->fetchAll();
+        $documents = query("SELECT deck_id,stored_name FROM documents WHERE deck_id IN ($placeholders) AND file_data IS NULL", $ids)->fetchAll();
         foreach ($decksToDelete as $deck) {
             audit_event($user, 'admin_hidden_deck_permanently_deleted', (string)$deck['id'], ['deckTitle'=>$deck['title']], 'deck');
         }

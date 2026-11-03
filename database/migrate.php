@@ -22,6 +22,7 @@ if(!in_array('password_reset_tokens',$tables,true)){
 $columns=array_column($db->query('SHOW COLUMNS FROM users')->fetchAll(),'Field');
 if(!in_array('email',$columns,true)){ $db->exec('ALTER TABLE users ADD COLUMN email VARCHAR(254) NULL UNIQUE AFTER username'); echo "Added nullable unique email; existing usernames/password hashes were preserved.\n"; }
 $columns=array_column($db->query('SHOW COLUMNS FROM documents')->fetchAll(),'Field');
+if(!in_array('file_data',$columns,true)){$db->exec('ALTER TABLE documents ADD COLUMN file_data LONGBLOB NULL AFTER size_bytes');echo "Added database-backed private PDF storage. Existing files remain in the configured upload directory until copied.\n";}
 if(!in_array('user_id',$columns,true)){
     $db->exec('ALTER TABLE documents ADD COLUMN user_id CHAR(32) NULL AFTER id');
     $db->exec('UPDATE documents m JOIN decks d ON d.id=m.deck_id SET m.user_id=d.user_id WHERE m.user_id IS NULL');
